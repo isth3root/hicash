@@ -6,6 +6,7 @@ import { formatToman, fromTomanStorage } from "../utils/currency";
 import { DatePicker } from "zaman";
 import { ResponsivePie } from "@nivo/pie";
 import { ResponsiveLine } from "@nivo/line";
+import { Checkbox } from "react-aria-components";
 
 interface DashboardPageProps {
   transactions: Transaction[];
@@ -28,10 +29,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ transactions }) => {
   >(null);
   const [expenseSearchTerm, setExpenseSearchTerm] = useState("");
   const [incomeSearchTerm, setIncomeSearchTerm] = useState("");
-  const [expenseCheckboxes, setExpenseCheckboxes] = useState<
+  const [expenseCheckboxes, ] = useState<
     Record<string, boolean>
   >({});
-  const [incomeCheckboxes, setIncomeCheckboxes] = useState<
+  const [incomeCheckboxes, ] = useState<
     Record<string, boolean>
   >({});
   const [expandedExpenseCategories, setExpandedExpenseCategories] = useState<
@@ -317,6 +318,44 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ transactions }) => {
     });
 
     return { data: lineData, xAxisDays: jalaliXAxisDays };
+  };
+
+  const getExpenseCategoryState = (categoryId: string) => {
+    const txs = getTransactionsByCategory(categoryId, "cost");
+    if (txs.length === 0) return { checked: false, indeterminate: false };
+
+    const values = txs.map((t) => {
+      const key = `${t.date}-${t.category}-${t.items
+        .map((i) => i.name)
+        .join(",")}`;
+      return expenseTransactionCheckboxes[key] !== false;
+    });
+
+    const checkedCount = values.filter(Boolean).length;
+
+    return {
+      checked: checkedCount === values.length,
+      indeterminate: checkedCount > 0 && checkedCount < values.length,
+    };
+  };
+
+  const getIncomeCategoryState = (categoryId: string) => {
+    const txs = getTransactionsByCategory(categoryId, "income");
+    if (txs.length === 0) return { checked: false, indeterminate: false };
+
+    const values = txs.map((t) => {
+      const key = `${t.date}-${t.category}-${t.items
+        .map((i) => i.name)
+        .join(",")}`;
+      return incomeTransactionCheckboxes[key] !== false;
+    });
+
+    const checkedCount = values.filter(Boolean).length;
+
+    return {
+      checked: checkedCount === values.length,
+      indeterminate: checkedCount > 0 && checkedCount < values.length,
+    };
   };
 
   return (
@@ -1130,17 +1169,75 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ transactions }) => {
                         className="bg-white p-3 rounded-lg border border-gray-100"
                       >
                         <div className="flex items-center gap-3">
-                          <input
-                            type="checkbox"
-                            checked={expenseCheckboxes[category.id] !== false}
-                            onChange={(e) => {
-                              setExpenseCheckboxes((prev) => ({
-                                ...prev,
-                                [category.id]: e.target.checked,
-                              }));
-                            }}
-                            className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                          />
+                          {(() => {
+                            const cat = getExpenseCategoryState(category.id);
+
+                            return (
+                              <Checkbox
+                                className="group flex items-center gap-2"
+                                isSelected={cat.checked}
+                                isIndeterminate={cat.indeterminate}
+                                onChange={(checked) => {
+                                  const txs = getTransactionsByCategory(
+                                    category.id,
+                                    "cost"
+                                  );
+
+                                  setExpenseTransactionCheckboxes((prev) => {
+                                    const next = { ...prev };
+                                    txs.forEach((t) => {
+                                      const key = `${t.date}-${
+                                        t.category
+                                      }-${t.items
+                                        .map((i) => i.name)
+                                        .join(",")}`;
+                                      next[key] = checked;
+                                    });
+                                    return next;
+                                  });
+                                }}
+                              >
+                                <div
+                                  className="
+                                    w-4 h-4 border rounded flex items-center justify-center
+                                    group-data-selected:bg-red-500
+                                    group-data-indeterminate:bg-yellow-500
+                                  "
+                                >
+                                  <span
+                                    className="
+                                      text-white text-xs opacity-0
+                                      group-data-selected:opacity-100
+                                      group-data-indeterminate:opacity-100
+                                    "
+                                  >
+                                    {cat.indeterminate ? (
+                                      <div
+                                        className="
+    w-2.5 h-0.5 bg-white rounded
+    opacity-0 group-data-indeterminate:opacity-100
+    transition-opacity
+  "
+                                      />
+                                    ) : (
+                                      <svg
+                                        className="w-3 h-3 text-white opacity-0 group-data-selected:opacity-100 transition-opacity"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="3"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                      >
+                                        <polyline points="20 6 9 17 4 12" />
+                                      </svg>
+                                    )}
+                                  </span>
+                                </div>
+                              </Checkbox>
+                            );
+                          })()}
+
                           <div className="flex-1">
                             <div className="font-medium text-gray-800">
                               {category.label}
@@ -1193,23 +1290,44 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ transactions }) => {
                                     key={index}
                                     className="flex items-center gap-3 p-2 bg-gray-50 rounded"
                                   >
-                                    <input
-                                      type="checkbox"
-                                      checked={
+                                    <Checkbox
+                                      className="group flex items-center gap-2"
+                                      isSelected={
                                         expenseTransactionCheckboxes[
                                           transactionKey
                                         ] !== false
                                       }
-                                      onChange={(e) => {
+                                      onChange={(checked) => {
                                         setExpenseTransactionCheckboxes(
-                                          (prev) => ({
-                                            ...prev,
-                                            [transactionKey]: e.target.checked,
-                                          })
+                                          (prev) => {
+                                            const next = { ...prev };
+                                            next[transactionKey] = checked;
+                                            return next;
+                                          }
                                         );
                                       }}
-                                      className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                                    />
+                                    >
+                                      <div
+                                        className="
+                                          w-4 h-4 border rounded flex items-center justify-center
+                                          group-data-selected:bg-red-500
+                                          group-data-indeterminate:bg-yellow-500
+                                        "
+                                      >
+                                        <svg
+                                          className="w-3 h-3 text-white opacity-0 group-data-selected:opacity-100 transition-opacity"
+                                          viewBox="0 0 24 24"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth="3"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                        >
+                                          <polyline points="20 6 9 17 4 12" />
+                                        </svg>
+                                      </div>
+                                    </Checkbox>
+
                                     <div className="flex-1">
                                       <div className="text-sm font-medium text-gray-800">
                                         {new Date(
@@ -1282,17 +1400,75 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ transactions }) => {
                         className="bg-white p-3 rounded-lg border border-gray-100"
                       >
                         <div className="flex items-center gap-3">
-                          <input
-                            type="checkbox"
-                            checked={incomeCheckboxes[category.id] !== false}
-                            onChange={(e) => {
-                              setIncomeCheckboxes((prev) => ({
-                                ...prev,
-                                [category.id]: e.target.checked,
-                              }));
-                            }}
-                            className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                          />
+                          {(() => {
+                            const cat = getIncomeCategoryState(category.id);
+
+                            return (
+                              <Checkbox
+                                className="group flex items-center gap-2"
+                                isSelected={cat.checked}
+                                isIndeterminate={cat.indeterminate}
+                                onChange={(checked) => {
+                                  const txs = getTransactionsByCategory(
+                                    category.id,
+                                    "income"
+                                  );
+
+                                  setIncomeTransactionCheckboxes((prev) => {
+                                    const next = { ...prev };
+                                    txs.forEach((t) => {
+                                      const key = `${t.date}-${
+                                        t.category
+                                      }-${t.items
+                                        .map((i) => i.name)
+                                        .join(",")}`;
+                                      next[key] = checked;
+                                    });
+                                    return next;
+                                  });
+                                }}
+                              >
+                                <div
+                                  className="
+                                    w-4 h-4 border rounded flex items-center justify-center
+                                    group-data-selected:bg-green-500
+                                    group-data-indeterminate:bg-yellow-500
+                                  "
+                                >
+                                  <span
+                                    className="
+                                      text-white text-xs opacity-0
+                                      group-data-selected:opacity-100
+                                      group-data-indeterminate:opacity-100
+                                    "
+                                  >
+                                    {cat.indeterminate ? (
+                                      <div
+                                        className="
+    w-2.5 h-0.5 bg-white rounded
+    opacity-0 group-data-indeterminate:opacity-100
+    transition-opacity
+  "
+                                      />
+                                    ) : (
+                                      <svg
+                                        className="w-3 h-3 text-white opacity-0 group-data-selected:opacity-100 transition-opacity"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="3"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                      >
+                                        <polyline points="20 6 9 17 4 12" />
+                                      </svg>
+                                    )}
+                                  </span>
+                                </div>
+                              </Checkbox>
+                            );
+                          })()}
+
                           <div className="flex-1">
                             <div className="font-medium text-gray-800">
                               {category.label}
@@ -1343,23 +1519,44 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ transactions }) => {
                                     key={index}
                                     className="flex items-center gap-3 p-2 bg-gray-50 rounded"
                                   >
-                                    <input
-                                      type="checkbox"
-                                      checked={
+                                    <Checkbox
+                                      className="group flex items-center gap-2"
+                                      isSelected={
                                         incomeTransactionCheckboxes[
                                           transactionKey
                                         ] !== false
                                       }
-                                      onChange={(e) => {
+                                      onChange={(checked) => {
                                         setIncomeTransactionCheckboxes(
-                                          (prev) => ({
-                                            ...prev,
-                                            [transactionKey]: e.target.checked,
-                                          })
+                                          (prev) => {
+                                            const next = { ...prev };
+                                            next[transactionKey] = checked;
+                                            return next;
+                                          }
                                         );
                                       }}
-                                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                                    />
+                                    >
+                                      <div
+                                        className="
+                                          w-4 h-4 border rounded flex items-center justify-center
+                                          group-data-selected:bg-green-500
+                                          group-data-indeterminate:bg-yellow-500
+                                        "
+                                      >
+                                        <svg
+                                          className="w-3 h-3 text-white opacity-0 group-data-selected:opacity-100 transition-opacity"
+                                          viewBox="0 0 24 24"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth="3"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                        >
+                                          <polyline points="20 6 9 17 4 12" />
+                                        </svg>
+                                      </div>
+                                    </Checkbox>
+
                                     <div className="flex-1">
                                       <div className="text-sm font-medium text-gray-800">
                                         {new Date(
