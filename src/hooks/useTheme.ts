@@ -34,17 +34,17 @@ export const themes: Record<ThemeName, Theme> = {
   },
   dark: {
     name: 'dark',
-    background: 'bg-gray-900',
-    text: 'text-gray-100',
-    primary: 'bg-blue-600',
-    secondary: 'bg-gray-600',
-    accent: 'bg-red-600',
-    card: 'bg-gray-800',
-    border: 'border-gray-700',
-    success: 'bg-green-600',
-    danger: 'bg-red-600',
-    warning: 'bg-yellow-600',
-    gradient: 'from-gray-900 to-gray-800'
+    background: 'bg-slate-950',
+    text: 'text-slate-100',
+    primary: 'bg-indigo-600',
+    secondary: 'bg-slate-700',
+    accent: 'bg-violet-600',
+    card: 'bg-slate-900',
+    border: 'border-slate-800',
+    success: 'bg-emerald-600',
+    danger: 'bg-rose-600',
+    warning: 'bg-amber-600',
+    gradient: 'from-slate-950 via-slate-900 to-slate-950'
   },
   ocean: {
     name: 'ocean',

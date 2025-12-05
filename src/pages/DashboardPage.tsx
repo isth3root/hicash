@@ -5,6 +5,7 @@ import type { Transaction } from "../App";
 import { formatToman, fromTomanStorage } from "../utils/currency";
 import { DatePicker } from "zaman";
 import { ResponsivePie } from "@nivo/pie";
+import { ResponsiveLine } from "@nivo/line";
 
 interface DashboardPageProps {
   transactions: Transaction[];
@@ -12,27 +13,54 @@ interface DashboardPageProps {
 
 const DashboardPage: React.FC<DashboardPageProps> = ({ transactions }) => {
   const [activeTab, setActiveTab] = useState<"past" | "future">("past");
-  const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>({
+  const [dateRange, setDateRange] = useState<{
+    start: Date | null;
+    end: Date | null;
+  }>({
     start: new Date(new Date().setDate(new Date().getDate() - 7)),
-    end: new Date()
+    end: new Date(),
   });
-  const [selectedIncomeCategory, setSelectedIncomeCategory] = useState<string | null>(null);
-  const [selectedExpenseCategory, setSelectedExpenseCategory] = useState<string | null>(null);
+  const [selectedIncomeCategory, setSelectedIncomeCategory] = useState<
+    string | null
+  >(null);
+  const [selectedExpenseCategory, setSelectedExpenseCategory] = useState<
+    string | null
+  >(null);
+  const [expenseSearchTerm, setExpenseSearchTerm] = useState("");
+  const [incomeSearchTerm, setIncomeSearchTerm] = useState("");
+  const [expenseCheckboxes, setExpenseCheckboxes] = useState<
+    Record<string, boolean>
+  >({});
+  const [incomeCheckboxes, setIncomeCheckboxes] = useState<
+    Record<string, boolean>
+  >({});
+  const [expandedExpenseCategories, setExpandedExpenseCategories] = useState<
+    Record<string, boolean>
+  >({});
+  const [expandedIncomeCategories, setExpandedIncomeCategories] = useState<
+    Record<string, boolean>
+  >({});
+  const [expenseTransactionCheckboxes, setExpenseTransactionCheckboxes] =
+    useState<Record<string, boolean>>({});
+  const [incomeTransactionCheckboxes, setIncomeTransactionCheckboxes] =
+    useState<Record<string, boolean>>({});
 
   // Filter transactions based on date range
-  const filteredTransactions = transactions.filter(transaction => {
+  const filteredTransactions = transactions.filter((transaction) => {
     const transactionDate = new Date(transaction.date);
-    return (!dateRange.start || transactionDate >= dateRange.start) &&
-           (!dateRange.end || transactionDate <= dateRange.end);
+    return (
+      (!dateRange.start || transactionDate >= dateRange.start) &&
+      (!dateRange.end || transactionDate <= dateRange.end)
+    );
   });
 
   // Calculate statistics for filtered transactions
   const totalIncome = filteredTransactions
-    .filter(t => t.type === "income")
+    .filter((t) => t.type === "income")
     .reduce((sum, t) => sum + t.totalAmount, 0);
 
   const totalExpenses = filteredTransactions
-    .filter(t => t.type === "cost")
+    .filter((t) => t.type === "cost")
     .reduce((sum, t) => sum + t.totalAmount, 0);
 
   // Calculate current balance (including initial balance)
@@ -51,74 +79,244 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ transactions }) => {
 
   // Prepare data for pie charts - separate income and expense
   const incomeCategoryData = filteredTransactions
-    .filter(t => t.type === "income")
+    .filter((t) => t.type === "income")
     .reduce((acc, transaction) => {
       const displayAmount = fromTomanStorage(transaction.totalAmount);
-      const existingCategory = acc.find(item => item.id === transaction.category);
+      const existingCategory = acc.find(
+        (item) => item.id === transaction.category
+      );
       if (existingCategory) {
         existingCategory.value += displayAmount;
       } else {
         acc.push({
           id: transaction.category,
           label: transaction.category,
-          value: displayAmount
+          value: displayAmount,
         });
       }
       return acc;
     }, [] as { id: string; label: string; value: number }[]);
 
   const expenseCategoryData = filteredTransactions
-    .filter(t => t.type === "cost")
+    .filter((t) => t.type === "cost")
     .reduce((acc, transaction) => {
       const displayAmount = fromTomanStorage(transaction.totalAmount);
-      const existingCategory = acc.find(item => item.id === transaction.category);
+      const existingCategory = acc.find(
+        (item) => item.id === transaction.category
+      );
       if (existingCategory) {
         existingCategory.value += displayAmount;
       } else {
         acc.push({
           id: transaction.category,
           label: transaction.category,
-          value: displayAmount
+          value: displayAmount,
         });
       }
       return acc;
     }, [] as { id: string; label: string; value: number }[]);
 
   // Get transactions for a specific category
-  const getTransactionsByCategory = (category: string, type: "income" | "cost") => {
+  const getTransactionsByCategory = (
+    category: string,
+    type: "income" | "cost"
+  ) => {
     return filteredTransactions
-      .filter(t => t.type === type && t.category === category)
-      .map(t => ({
+      .filter((t) => t.type === type && t.category === category)
+      .map((t) => ({
         ...t,
-        displayAmount: fromTomanStorage(t.totalAmount)
+        displayAmount: fromTomanStorage(t.totalAmount),
       }));
   };
 
   // Calculate percentage for individual transactions within a category
-  const calculateTransactionPercentages = (transactions: ReturnType<typeof getTransactionsByCategory>) => {
+  const calculateTransactionPercentages = (
+    transactions: ReturnType<typeof getTransactionsByCategory>
+  ) => {
     if (transactions.length === 0) return transactions;
 
     const total = transactions.reduce((sum, t) => sum + t.displayAmount, 0);
-    return transactions.map(t => ({
+    return transactions.map((t) => ({
       ...t,
-      percentage: total > 0 ? (t.displayAmount / total) * 100 : 0
-    })) as Array<ReturnType<typeof getTransactionsByCategory>[number] & { percentage: number }>;
+      percentage: total > 0 ? (t.displayAmount / total) * 100 : 0,
+    })) as Array<
+      ReturnType<typeof getTransactionsByCategory>[number] & {
+        percentage: number;
+      }
+    >;
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const normalizeZamanDate = (input: any): Date|null => {
+  const normalizeZamanDate = (input: any): Date | null => {
     if (!input) return null;
 
     if (input.value instanceof Date) {
-      return input.value
+      return input.value;
     }
 
     if (input.year && input.month && input.day) {
-      return new Date(input.year, input.month - 1, input.day)
+      return new Date(input.year, input.month - 1, input.day);
     }
 
     console.warn("Invalid date format", input);
     return null;
+  };
+
+  // Prepare data for line chart - expenses and balance per day with missing data for future days
+  const prepareLineChartData = () => {
+    if (!dateRange.start || !dateRange.end) return { data: [], xAxisDays: [] };
+
+    // Generate all days in the selected interval
+    const xAxisDays: string[] = [];
+    const currentDate = new Date(dateRange.start);
+    const endDate = new Date(dateRange.end);
+
+    while (currentDate <= endDate) {
+      xAxisDays.push(currentDate.toISOString().split("T")[0]);
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Group transactions by day and calculate expenses and balance
+    const dailyData: Record<string, { expenses: number; balance: number }> = {};
+
+    // Initialize with initial balance (assuming 0 for simplicity)
+    let runningBalance = 0;
+
+    // Process all transactions to calculate daily balance
+    const allTransactions = [...transactions].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    allTransactions.forEach((transaction) => {
+      const transactionDate = new Date(transaction.date);
+      const dateKey = transactionDate.toISOString().split("T")[0];
+
+      // Only include transactions within the selected date range
+      if (
+        transactionDate >= dateRange.start! &&
+        transactionDate <= dateRange.end!
+      ) {
+        if (!dailyData[dateKey]) {
+          dailyData[dateKey] = { expenses: 0, balance: runningBalance };
+        }
+
+        // Check if this transaction's category is checked in the checkboxes
+        const isExpenseChecked =
+          expenseCheckboxes[transaction.category] !== false;
+        const isIncomeChecked =
+          incomeCheckboxes[transaction.category] !== false;
+
+        // Generate unique key for transaction checkbox state
+        const transactionKey = `${transaction.date}-${
+          transaction.category
+        }-${transaction.items.map((i) => i.name).join(",")}`;
+
+        // Check if individual transaction is checked
+        const isExpenseTransactionChecked =
+          expenseTransactionCheckboxes[transactionKey] !== false;
+        const isIncomeTransactionChecked =
+          incomeTransactionCheckboxes[transactionKey] !== false;
+
+        if (
+          transaction.type === "cost" &&
+          isExpenseChecked &&
+          isExpenseTransactionChecked
+        ) {
+          dailyData[dateKey].expenses += transaction.totalAmount;
+          runningBalance -= transaction.totalAmount;
+        } else if (
+          transaction.type === "income" &&
+          isIncomeChecked &&
+          isIncomeTransactionChecked
+        ) {
+          runningBalance += transaction.totalAmount;
+        }
+
+        dailyData[dateKey].balance = runningBalance;
+      }
+    });
+
+    // Fill in missing days with previous balance
+    let lastBalance: number | null = null;
+    xAxisDays.forEach((day) => {
+      if (!dailyData[day]) {
+        dailyData[day] = { expenses: 0, balance: lastBalance ?? 0 };
+      } else {
+        lastBalance = dailyData[day].balance;
+      }
+    });
+
+    const lineData = [
+      {
+        id: "هزینه‌ها",
+        data: xAxisDays.map((day) => {
+          const date = new Date(day);
+          const jalaliDay = date.toLocaleDateString("fa-IR", {
+            day: "numeric",
+          });
+          const jalaliFullDate = date.toLocaleDateString("fa-IR", {
+            month: "short",
+            day: "numeric",
+          });
+
+          const expenses = dailyData[day]?.expenses || 0;
+
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const dayDate = new Date(day);
+          dayDate.setHours(0, 0, 0, 0);
+
+          const isFutureDay = dayDate > today;
+
+          return {
+            x: jalaliFullDate,
+            y: isFutureDay ? null : fromTomanStorage(expenses),
+            value: expenses,
+            dayOnly: jalaliDay,
+          };
+        }),
+      },
+      {
+        id: "بالانس",
+        data: xAxisDays.map((day) => {
+          const date = new Date(day);
+          const jalaliDay = date.toLocaleDateString("fa-IR", {
+            day: "numeric",
+          });
+          const jalaliFullDate = date.toLocaleDateString("fa-IR", {
+            month: "short",
+            day: "numeric",
+          });
+
+          const balance = dailyData[day]?.balance || 0;
+
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const dayDate = new Date(day);
+          dayDate.setHours(0, 0, 0, 0);
+
+          const isFutureDay = dayDate > today;
+
+          return {
+            x: jalaliFullDate,
+            y: isFutureDay ? null : fromTomanStorage(balance),
+            value: balance,
+            dayOnly: jalaliDay,
+          };
+        }),
+      },
+    ];
+
+    const jalaliXAxisDays = xAxisDays.map((day) => {
+      const date = new Date(day);
+      return date.toLocaleDateString("fa-IR", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    });
+
+    return { data: lineData, xAxisDays: jalaliXAxisDays };
   };
 
   return (
@@ -758,6 +956,443 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ transactions }) => {
                 )}
               </div>
             </Card>
+          </div>
+
+          <div className="mt-8">
+            <Card title="روند هزینه‌ها و بالانس">
+              <div className="h-[400px]">
+                {(() => {
+                  const { data, xAxisDays } = prepareLineChartData();
+
+                  if (xAxisDays.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-gray-500">
+                        <Lucide.TrendingUp className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                        <p>داده‌ای برای نمایش نمودار روند وجود ندارد</p>
+                        <p className="text-sm">
+                          لطفا یک بازه زمانی معتبر انتخاب کنید
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <ResponsiveLine
+                      data={data}
+                      colors={({ id }) =>
+                        id === "هزینه‌ها" ? "#8B5CF6" : "#10B981"
+                      }
+                      theme={{
+                        text: {
+                          fontFamily: "AradVF",
+                          fontSize: 14,
+                          fill: "#374151",
+                        },
+                        axis: {
+                          legend: {
+                            text: {
+                              fontFamily: "AradVF",
+                              fontSize: 15,
+                              fill: "#111827",
+                            },
+                          },
+                        },
+                        legends: {
+                          text: {
+                            fontFamily: "AradVF",
+                            fontSize: 12,
+                          },
+                        },
+                        tooltip: {
+                          container: {
+                            fontFamily: "AradVF",
+                            fontSize: 12,
+                          },
+                        },
+                      }}
+                      margin={{ top: 20, right: 20, bottom: 60, left: 60 }}
+                      xScale={{ type: "point" }}
+                      yScale={{
+                        type: "linear",
+                        min: "auto",
+                        max: "auto",
+                        stacked: false,
+                        reverse: false,
+                      }}
+                      yFormat=" >-.0f"
+                      axisTop={null}
+                      axisRight={null}
+                      axisBottom={{
+                        tickSize: 5,
+                        tickPadding: 5,
+                        tickRotation: -45,
+                        legend: "تاریخ",
+                        legendOffset: 40,
+                        legendPosition: "middle",
+                        format: (value) => value, // Use the Jalali date as-is
+                      }}
+                      axisLeft={{
+                        tickSize: 5,
+                        tickPadding: 5,
+                        tickRotation: 0,
+                        legend: "قیمت (تومان)",
+                        legendOffset: -50,
+                        legendPosition: "middle",
+                        format: (value) => value.toLocaleString("fa-IR"),
+                      }}
+                      pointSize={8}
+                      pointColor={{ theme: "background" }}
+                      pointBorderWidth={2}
+                      pointBorderColor={{ from: "serieColor" }}
+                      pointLabelYOffset={-12}
+                      useMesh={true}
+                      enableArea={true}
+                      areaOpacity={0.3}
+                      areaBaselineValue={0}
+                      enableSlices="x"
+                      enableGridX={false}
+                      enableGridY={true}
+                      curve="monotoneX"
+                      lineWidth={3}
+                      areaBlendMode="multiply"
+                      enableCrosshair={true}
+                      crosshairType="cross"
+                      enablePointLabel={false}
+                      sliceTooltip={({ slice }) => {
+                        // The x value is already a Jalali date string, use it directly
+                        const xValue = slice.points[0].data.x;
+
+                        return (
+                          <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
+                            <div className="font-semibold text-gray-800">
+                              {xValue}
+                            </div>
+                            {slice.points.map((point) => (
+                              <div
+                                key={point.id}
+                                className="text-sm text-gray-600 mt-1 flex justify-between"
+                              >
+                                <span>{point.seriesId}:</span>
+                                <span>
+                                  {point.data.y !== null
+                                    ? Math.round(point.data.y).toLocaleString(
+                                        "fa-IR"
+                                      )
+                                    : "بدون داده"}{" "}
+                                  تومان
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }}
+                    />
+                  );
+                })()}
+              </div>
+            </Card>
+
+            {/* Expense Categories Section */}
+            <div className="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Lucide.TrendingDown className="w-5 h-5 text-red-600" />
+                دسته‌بندی هزینه‌ها
+              </h3>
+
+              <div className="mb-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="جستجوی هزینه‌ها..."
+                    value={expenseSearchTerm}
+                    onChange={(e) => setExpenseSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:outline-none"
+                  />
+                  <Lucide.Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                </div>
+              </div>
+
+              {expenseCategoryData.length > 0 ? (
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {expenseCategoryData
+                    .filter(
+                      (category) =>
+                        category.id
+                          .toLowerCase()
+                          .includes(expenseSearchTerm.toLowerCase()) ||
+                        category.label
+                          .toLowerCase()
+                          .includes(expenseSearchTerm.toLowerCase())
+                    )
+                    .map((category) => (
+                      <div
+                        key={category.id}
+                        className="bg-white p-3 rounded-lg border border-gray-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={expenseCheckboxes[category.id] !== false}
+                            onChange={(e) => {
+                              setExpenseCheckboxes((prev) => ({
+                                ...prev,
+                                [category.id]: e.target.checked,
+                              }));
+                            }}
+                            className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-800">
+                              {category.label}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {category.value.toLocaleString("fa-IR")} تومان
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setExpandedExpenseCategories((prev) => ({
+                                ...prev,
+                                [category.id]: !prev[category.id],
+                              }));
+                            }}
+                            className="text-gray-400 hover:text-gray-600"
+                          >
+                            {expandedExpenseCategories[category.id] ? (
+                              <Lucide.ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <Lucide.ChevronDown className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+
+                        {expandedExpenseCategories[category.id] && (
+                          <div className="mt-3 ml-6 space-y-2">
+                            {getTransactionsByCategory(category.id, "cost")
+                              .filter(
+                                (transaction) =>
+                                  transaction.category
+                                    .toLowerCase()
+                                    .includes(
+                                      expenseSearchTerm.toLowerCase()
+                                    ) ||
+                                  transaction.items.some((item) =>
+                                    item.name
+                                      .toLowerCase()
+                                      .includes(expenseSearchTerm.toLowerCase())
+                                  )
+                              )
+                              .map((transaction, index) => {
+                                const transactionKey = `${transaction.date}-${
+                                  transaction.category
+                                }-${transaction.items
+                                  .map((i) => i.name)
+                                  .join(",")}`;
+                                return (
+                                  <div
+                                    key={index}
+                                    className="flex items-center gap-3 p-2 bg-gray-50 rounded"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={
+                                        expenseTransactionCheckboxes[
+                                          transactionKey
+                                        ] !== false
+                                      }
+                                      onChange={(e) => {
+                                        setExpenseTransactionCheckboxes(
+                                          (prev) => ({
+                                            ...prev,
+                                            [transactionKey]: e.target.checked,
+                                          })
+                                        );
+                                      }}
+                                      className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                                    />
+                                    <div className="flex-1">
+                                      <div className="text-sm font-medium text-gray-800">
+                                        {new Date(
+                                          transaction.date
+                                        ).toLocaleDateString("fa-IR")}
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        {transaction.items
+                                          .map((item) => item.name)
+                                          .join(", ")}
+                                      </div>
+                                    </div>
+                                    <div className="text-sm font-semibold text-red-600">
+                                      {transaction.displayAmount.toLocaleString(
+                                        "fa-IR"
+                                      )}{" "}
+                                      تومان
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <Lucide.List className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                  <p>دسته‌بندی هزینه‌ای یافت نشد</p>
+                </div>
+              )}
+            </div>
+
+            {/* Income Categories Section */}
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Lucide.TrendingUp className="w-5 h-5 text-green-600" />
+                دسته‌بندی درآمدها
+              </h3>
+
+              <div className="mb-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="جستجوی درآمدها..."
+                    value={incomeSearchTerm}
+                    onChange={(e) => setIncomeSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 focus:outline-none"
+                  />
+                  <Lucide.Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                </div>
+              </div>
+
+              {incomeCategoryData.length > 0 ? (
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {incomeCategoryData
+                    .filter(
+                      (category) =>
+                        category.id
+                          .toLowerCase()
+                          .includes(incomeSearchTerm.toLowerCase()) ||
+                        category.label
+                          .toLowerCase()
+                          .includes(incomeSearchTerm.toLowerCase())
+                    )
+                    .map((category) => (
+                      <div
+                        key={category.id}
+                        className="bg-white p-3 rounded-lg border border-gray-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={incomeCheckboxes[category.id] !== false}
+                            onChange={(e) => {
+                              setIncomeCheckboxes((prev) => ({
+                                ...prev,
+                                [category.id]: e.target.checked,
+                              }));
+                            }}
+                            className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-800">
+                              {category.label}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {category.value.toLocaleString("fa-IR")} تومان
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setExpandedIncomeCategories((prev) => ({
+                                ...prev,
+                                [category.id]: !prev[category.id],
+                              }));
+                            }}
+                            className="text-gray-400 hover:text-gray-600"
+                          >
+                            {expandedIncomeCategories[category.id] ? (
+                              <Lucide.ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <Lucide.ChevronDown className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+
+                        {expandedIncomeCategories[category.id] && (
+                          <div className="mt-3 ml-6 space-y-2">
+                            {getTransactionsByCategory(category.id, "income")
+                              .filter(
+                                (transaction) =>
+                                  transaction.category
+                                    .toLowerCase()
+                                    .includes(incomeSearchTerm.toLowerCase()) ||
+                                  transaction.items.some((item) =>
+                                    item.name
+                                      .toLowerCase()
+                                      .includes(incomeSearchTerm.toLowerCase())
+                                  )
+                              )
+                              .map((transaction, index) => {
+                                const transactionKey = `${transaction.date}-${
+                                  transaction.category
+                                }-${transaction.items
+                                  .map((i) => i.name)
+                                  .join(",")}`;
+                                return (
+                                  <div
+                                    key={index}
+                                    className="flex items-center gap-3 p-2 bg-gray-50 rounded"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={
+                                        incomeTransactionCheckboxes[
+                                          transactionKey
+                                        ] !== false
+                                      }
+                                      onChange={(e) => {
+                                        setIncomeTransactionCheckboxes(
+                                          (prev) => ({
+                                            ...prev,
+                                            [transactionKey]: e.target.checked,
+                                          })
+                                        );
+                                      }}
+                                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                                    />
+                                    <div className="flex-1">
+                                      <div className="text-sm font-medium text-gray-800">
+                                        {new Date(
+                                          transaction.date
+                                        ).toLocaleDateString("fa-IR")}
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        {transaction.items
+                                          .map((item) => item.name)
+                                          .join(", ")}
+                                      </div>
+                                    </div>
+                                    <div className="text-sm font-semibold text-green-600">
+                                      {transaction.displayAmount.toLocaleString(
+                                        "fa-IR"
+                                      )}{" "}
+                                      تومان
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <Lucide.List className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                  <p>دسته‌بندی درآمدی یافت نشد</p>
+                </div>
+              )}
+            </div>
           </div>
         </>
       )}

@@ -4,6 +4,7 @@ import Button from "./ui/Button";
 import Card from "./ui/Card";
 import Select from "./ui/Select";
 import * as Lucide from "lucide-react";
+import { DatePicker } from "zaman";
 import type { Category, Transaction, Item } from "../App";
 import { fromTomanStorage, parseTomanInput, formatToman } from "../utils/currency";
 
@@ -21,6 +22,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ categories, transacti
   const [itemPrice, setItemPrice] = useState(0);
   const [itemCount, setItemCount] = useState(1);
   const [category, setCategory] = useState("");
+  const [transactionDate, setTransactionDate] = useState<Date>(new Date());
 
   // For income, we'll use a simplified approach
   const [incomeName, setIncomeName] = useState("");
@@ -57,7 +59,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ categories, transacti
         totalAmount,
         items: [{ name: incomeName, price: totalAmount, count: 1 }],
         category,
-        date: new Date().toISOString(),
+        date: transactionDate.toISOString(),
       };
 
       setTransactions([...transactions, newTransaction]);
@@ -85,7 +87,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ categories, transacti
       totalAmount,
       items,
       category,
-      date: new Date().toISOString(),
+      date: transactionDate.toISOString(),
     };
 
     setTransactions([...transactions, newTransaction]);
@@ -155,6 +157,20 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ categories, transacti
             onChange={setCategory}
             options={categories.map(cat => ({ value: cat.name, label: cat.name }))}
             placeholder="یک دسته‌بندی انتخاب کنید"
+          />
+        </div>
+
+        {/* Date Picker */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">تاریخ تراکنش</label>
+          <DatePicker
+            onChange={(date) => {
+              if (date && date.value) {
+                setTransactionDate(date.value);
+              }
+            }}
+            className="w-full zaman-datepicker"
+            inputClass="w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
           />
         </div>
 
