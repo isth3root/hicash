@@ -29,10 +29,19 @@ export interface Transaction {
     date: string;
 }
 
+export interface FrequentTransaction {
+    name: string;
+    type: "income" | "cost";
+    totalAmount: number;
+    items: Item[];
+    category: string;
+}
+
 const App = () => {
   const { theme } = useTheme();
   const [categories, setCategories] = useLocalStorage<Category[]>("categories", []);
   const [transactions, setTransactions] = useLocalStorage<Transaction[]>("transactions", []);
+  const [frequentTransactions, setFrequentTransactions] = useLocalStorage<FrequentTransaction[]>("frequentTransactions", []);
   const [isLoading, setIsLoading] = useState(true);
 
   // Simulate loading state
@@ -50,8 +59,7 @@ const App = () => {
           <div className="animate-spin">
             <Lucide.Loader2 className="w-12 h-12 text-primary-600 mx-auto mb-4" />
           </div>
-          <h2 className="text-2xl font-semibold text-gray-800 mb-2">Loading your financial data</h2>
-          <p className="text-gray-500">Please wait while we prepare your dashboard...</p>
+          <h2 className="text-2xl font-semibold text-gray-800 mb-2">در حال بارگزاری اطلاعات مالی شما</h2>
         </div>
       </div>
     );
@@ -72,6 +80,8 @@ const App = () => {
                   categories={categories}
                   transactions={transactions}
                   setTransactions={setTransactions}
+                  frequentTransactions={frequentTransactions}
+                  setFrequentTransactions={setFrequentTransactions}
                 />
               }
             />
